@@ -43,6 +43,11 @@ export function registerTools(server: McpServer): void {
       networkMonitor.attach(page);
       await performanceMonitor.injectObservers(page);
 
+      // Auto-enable element selection in visible mode
+      if (!headless) {
+        await overlayManager.start(page);
+      }
+
       const msg = url ? `Browser launched and navigated to ${url}` : 'Browser launched';
       return { content: [{ type: 'text', text: msg }] };
     },
