@@ -1,0 +1,12 @@
+{
+  "name": "claude-browser",
+  "version": "1.0.0",
+  "description": "Visual browser for frontend development - element selection, component detection, source mapping",
+  "mcpServers": {
+    "claude-browser": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "."
+    }
+  }
+}

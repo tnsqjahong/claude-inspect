@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "claude-browser": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "cwd": "."
+    }
+  }
+}

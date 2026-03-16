@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "bash scripts/check-playwright.sh",
+        "timeout": 120000
+      }
+    ]
+  }
+}
