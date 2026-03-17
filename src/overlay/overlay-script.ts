@@ -8,28 +8,61 @@ export const OVERLAY_SCRIPT: string = `(function() {
   highlight.style.display = 'none';
   document.body.appendChild(highlight);
 
-  var tooltip = document.createElement('div');
-  tooltip.className = '__cb-tooltip';
-  tooltip.style.display = 'none';
-  document.body.appendChild(tooltip);
-
-  var tail = document.createElement('div');
-  tail.className = '__cb-tooltip-tail';
-  tooltip.appendChild(tail);
-
-  var bridge = document.createElement('div');
-  bridge.className = '__cb-bridge';
-  document.body.appendChild(bridge);
-
   var hint = document.createElement('div');
   hint.className = '__cb-hint';
-  hint.textContent = 'Hover to inspect \\u00b7 Click "\\u2192 Claude Code" to send \\u00b7 ESC to exit';
+  var hintText = document.createElement('span');
+  hintText.textContent = 'Hover to inspect \\u00b7 Long-press to send \\u00b7 ESC to pause';
+  hint.appendChild(hintText);
+  var hintClose = document.createElement('button');
+  hintClose.className = '__cb-hint-close';
+  hintClose.textContent = '\\u00d7';
+  hint.appendChild(hintClose);
   document.body.appendChild(hint);
+
+  hintClose.addEventListener('click', function(e) {
+    e.stopPropagation();
+    hint.style.display = 'none';
+  });
+
+  // ── Hint drag ─────────────────────────────────────────
+  var hintDragging = false;
+  var hintDragOffset = { x: 0, y: 0 };
+
+  hint.addEventListener('mousedown', function(e) {
+    if (e.target === hintClose) return;
+    e.preventDefault();
+    hintDragging = true;
+    hint.classList.add('--dragging');
+    var rect = hint.getBoundingClientRect();
+    hintDragOffset.x = e.clientX - rect.left;
+    hintDragOffset.y = e.clientY - rect.top;
+    // Switch from centered to absolute positioning on first drag
+    hint.style.transform = 'none';
+    hint.style.left = rect.left + 'px';
+    hint.style.top = rect.top + 'px';
+    hint.style.bottom = 'auto';
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!hintDragging) return;
+    var x = e.clientX - hintDragOffset.x;
+    var y = e.clientY - hintDragOffset.y;
+    hint.style.left = x + 'px';
+    hint.style.top = y + 'px';
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (hintDragging) {
+      hintDragging = false;
+      hint.classList.remove('--dragging');
+    }
+  });
 
   var selectedHighlight = null;
   var currentElement = null;
-  var currentElementInfo = null;
-  var tooltipFrozen = false;
+  var isActive = true;
+  var longPressTimer = null;
+  var longPressStartPos = null;
 
   // ── Framework Detection ──────────────────────────────
   function detectFramework(element) {
@@ -246,179 +279,36 @@ export const OVERLAY_SCRIPT: string = `(function() {
     }, 2000);
   }
 
-  // ── Tooltip positioning at mouse cursor ─────────────
-  function positionTooltipAtMouse(mx, my) {
-    tooltip.style.display = 'block';
-    var tooltipRect = tooltip.getBoundingClientRect();
-    var gap = 14;
-    var tooltipBelow = true;
-    var top, left;
-
-    // Try below cursor
-    top = my + gap;
-    if (top + tooltipRect.height > window.innerHeight - 4) {
-      // Not enough space below, go above
-      top = my - tooltipRect.height - gap;
-      tooltipBelow = false;
-    }
-    if (top < 4) top = 4;
-
-    // Center horizontally on cursor
-    left = mx - tooltipRect.width / 2;
-    if (left < 4) left = 4;
-    if (left + tooltipRect.width > window.innerWidth - 4) {
-      left = window.innerWidth - tooltipRect.width - 4;
-    }
-
-    tooltip.style.top = top + 'px';
-    tooltip.style.left = left + 'px';
-
-    // Position tail (arrow) pointing toward cursor
-    var tailLeft = mx - left - 6;
-    if (tailLeft < 8) tailLeft = 8;
-    if (tailLeft > tooltipRect.width - 20) tailLeft = tooltipRect.width - 20;
-
-    if (tooltipBelow) {
-      tail.style.top = '-5px';
-      tail.style.bottom = '';
-      tail.style.left = tailLeft + 'px';
-    } else {
-      tail.style.top = '';
-      tail.style.bottom = '-5px';
-      tail.style.left = tailLeft + 'px';
-    }
-
-    // Position invisible bridge between cursor and tooltip
-    bridge.style.display = 'block';
-    bridge.style.left = (mx - 24) + 'px';
-    bridge.style.width = '48px';
-    if (tooltipBelow) {
-      bridge.style.top = my + 'px';
-      bridge.style.height = gap + 'px';
-    } else {
-      bridge.style.top = (top + tooltipRect.height) + 'px';
-      bridge.style.height = gap + 'px';
-    }
-  }
-
-  function buildTooltip(info, el) {
-    tooltip.innerHTML = '';
-    tooltip.appendChild(tail);
-
-    // Line 1: Component name or tag + send button
-    var headerLine = document.createElement('div');
-    headerLine.style.display = 'flex';
-    headerLine.style.alignItems = 'center';
-    headerLine.style.justifyContent = 'space-between';
-    headerLine.style.gap = '12px';
-
-    var nameSpan = document.createElement('span');
-    if (info.component && info.component.componentName) {
-      nameSpan.className = '__cb-tooltip-component';
-      nameSpan.textContent = '<' + info.component.componentName + '>';
-    } else {
-      nameSpan.textContent = info.tagName + (info.id ? '#' + info.id : '') + (info.classes.length > 0 ? '.' + info.classes.slice(0, 2).join('.') : '');
-    }
-    headerLine.appendChild(nameSpan);
-
-    // "→ Claude Code" button
-    var sendBtn = document.createElement('button');
-    sendBtn.className = '__cb-send-btn';
-    sendBtn.textContent = '\\u2192 Claude Code';
-    sendBtn.addEventListener('mousedown', function(e) {
-      e.stopPropagation();
+  // ── Send element to Claude Code ──────────────────────
+  function sendElement(el) {
+    var info = collectElementInfo(el);
+    var name = (info.component && info.component.componentName) ? info.component.componentName : info.tagName;
+    window.__claudeBrowser_sendToClaudeCode(info.formattedText, name).then(function(n) {
+      if (n > 0) showToast('Sent [Component #' + n + '] to Claude Code!');
+      else showToast('Failed to send');
     });
-    sendBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      e.preventDefault();
 
-      // Save full info to file + type short reference into terminal
-      var name = (info.component && info.component.componentName) ? info.component.componentName : info.tagName;
-      window.__claudeBrowser_sendToClaudeCode(info.formattedText, name).then(function(n) {
-        if (n > 0) {
-          showToast('Sent [Component #' + n + '] to Claude Code!');
-        } else {
-          showToast('Failed to send');
-        }
-      });
-
-      // Show selected highlight
-      if (selectedHighlight) {
-        selectedHighlight.parentNode && selectedHighlight.parentNode.removeChild(selectedHighlight);
-      }
-      var rect = el.getBoundingClientRect();
-      selectedHighlight = document.createElement('div');
-      selectedHighlight.className = '__cb-selected';
-      selectedHighlight.style.top = rect.top + 'px';
-      selectedHighlight.style.left = rect.left + 'px';
-      selectedHighlight.style.width = rect.width + 'px';
-      selectedHighlight.style.height = rect.height + 'px';
-      document.body.appendChild(selectedHighlight);
-    });
-    headerLine.appendChild(sendBtn);
-    tooltip.appendChild(headerLine);
-
-    // Line 2: tag + dimensions (only if component detected)
-    if (info.component) {
-      var detailLine = document.createElement('div');
-      var rect = el.getBoundingClientRect();
-      var dim = Math.round(rect.width) + 'x' + Math.round(rect.height);
-      var tagSpan = document.createElement('span');
-      tagSpan.textContent = info.tagName + (info.id ? '#' + info.id : '') + (info.classes.length > 0 ? '.' + info.classes.slice(0, 2).join('.') : '');
-      detailLine.appendChild(tagSpan);
-      var dimSpan = document.createElement('span');
-      dimSpan.className = '__cb-tooltip-dim';
-      dimSpan.textContent = '  ' + dim;
-      detailLine.appendChild(dimSpan);
-      tooltip.appendChild(detailLine);
+    // Show selected highlight
+    if (selectedHighlight) {
+      selectedHighlight.parentNode && selectedHighlight.parentNode.removeChild(selectedHighlight);
     }
-
-    // Line 3: Source file
-    if (info.component && info.component.sourceFile) {
-      var srcDiv = document.createElement('div');
-      srcDiv.className = '__cb-tooltip-source';
-      var src = info.component.sourceFile;
-      if (info.component.lineNumber) src += ':' + info.component.lineNumber;
-      srcDiv.textContent = src;
-      tooltip.appendChild(srcDiv);
-    }
-
-    // Line 4: Props preview
-    if (info.component && info.component.props && Object.keys(info.component.props).length > 0) {
-      var propsDiv = document.createElement('div');
-      propsDiv.className = '__cb-tooltip-dim';
-      var propKeys = Object.keys(info.component.props).slice(0, 3);
-      var propStr = propKeys.map(function(k) { return k + '=' + JSON.stringify(info.component.props[k]); }).join(', ');
-      if (Object.keys(info.component.props).length > 3) propStr += ', ...';
-      propsDiv.textContent = propStr;
-      tooltip.appendChild(propsDiv);
-    }
+    var rect = el.getBoundingClientRect();
+    selectedHighlight = document.createElement('div');
+    selectedHighlight.className = '__cb-selected';
+    selectedHighlight.style.top = rect.top + 'px';
+    selectedHighlight.style.left = rect.left + 'px';
+    selectedHighlight.style.width = rect.width + 'px';
+    selectedHighlight.style.height = rect.height + 'px';
+    document.body.appendChild(selectedHighlight);
   }
-
-  // ── Freeze tooltip: stays open when mouse enters tooltip or bridge ──
-  tooltip.addEventListener('mouseenter', function() {
-    tooltipFrozen = true;
-  });
-  tooltip.addEventListener('mouseleave', function() {
-    tooltipFrozen = false;
-  });
-  bridge.addEventListener('mouseenter', function() {
-    tooltipFrozen = true;
-  });
-  bridge.addEventListener('mouseleave', function() {
-    tooltipFrozen = false;
-  });
 
   // ── Event Handlers ───────────────────────────────────
   function onMouseMove(e) {
-    if (tooltipFrozen) return;
-
     var el = document.elementFromPoint(e.clientX, e.clientY);
     if (!el || (el.className && typeof el.className === 'string' && el.className.includes('__cb-'))) {
       return;
     }
 
-    // Same element — no update
     if (el === currentElement) return;
 
     currentElement = el;
@@ -428,25 +318,45 @@ export const OVERLAY_SCRIPT: string = `(function() {
     highlight.style.left = rect.left + 'px';
     highlight.style.width = rect.width + 'px';
     highlight.style.height = rect.height + 'px';
-
-    var info = collectElementInfo(el);
-    currentElementInfo = info;
-    buildTooltip(info, el);
-    positionTooltipAtMouse(e.clientX, e.clientY);
   }
 
   function onKeyDown(e) {
-    if (e.key === 'Escape') {
-      cleanup();
-      window.__claudeBrowser_onSelectionCancelled();
+    if (e.key === 'Escape' && isActive) {
+      deactivate();
+    } else if (e.key === 'i' && (e.metaKey || e.ctrlKey) && !isActive) {
+      e.preventDefault();
+      activate();
+    } else if (e.key.toLowerCase() === 's' && e.metaKey && e.shiftKey) {
+      e.preventDefault();
+      startScreenCapture();
     }
   }
 
-  // ── Cleanup ──────────────────────────────────────────
-  function cleanup() {
+  // ── Deactivate (pause) ────────────────────────────────
+  function deactivate() {
+    highlight.style.display = 'none';
+    if (selectedHighlight) {
+      selectedHighlight.parentNode && selectedHighlight.parentNode.removeChild(selectedHighlight);
+      selectedHighlight = null;
+    }
+    document.removeEventListener('mousemove', onMouseMove, true);
+    currentElement = null;
+    isActive = false;
+    hintText.textContent = '\\u2318+I to inspect \\u00b7 Long-press to select';
+  }
+
+  // ── Activate (resume) ─────────────────────────────────
+  function activate() {
+    if (isActive) return;
+    isActive = true;
+    document.addEventListener('mousemove', onMouseMove, true);
+    hintText.textContent = 'Hover to inspect \\u00b7 Long-press to send \\u00b7 ESC to pause';
+    showToast('Element selection enabled');
+  }
+
+  // ── Full Cleanup (called by daemon stop) ──────────────
+  function fullCleanup() {
     highlight.parentNode && highlight.parentNode.removeChild(highlight);
-    tooltip.parentNode && tooltip.parentNode.removeChild(tooltip);
-    bridge.parentNode && bridge.parentNode.removeChild(bridge);
     hint.parentNode && hint.parentNode.removeChild(hint);
     if (selectedHighlight) {
       selectedHighlight.parentNode && selectedHighlight.parentNode.removeChild(selectedHighlight);
@@ -454,10 +364,160 @@ export const OVERLAY_SCRIPT: string = `(function() {
     }
     document.removeEventListener('mousemove', onMouseMove, true);
     document.removeEventListener('keydown', onKeyDown, true);
+    document.removeEventListener('mousedown', onLongPressStart, true);
+    document.removeEventListener('mouseup', onLongPressEnd, true);
+    document.removeEventListener('mousemove', onLongPressMove, true);
+    document.removeEventListener('dblclick', onDblClick, true);
     window.__claudeBrowser_overlayActive = false;
+  }
+  window.__claudeBrowser_fullCleanup = fullCleanup;
+
+  // ── Long-press ────────────────────────────────────────
+  var longPressTriggered = false;
+
+  function onLongPressStart(e) {
+    if (e.button !== 0) return;
+    var el = document.elementFromPoint(e.clientX, e.clientY);
+    if (!el || (el.className && typeof el.className === 'string' && el.className.includes('__cb-'))) return;
+
+    e.preventDefault();
+    longPressStartPos = { x: e.clientX, y: e.clientY };
+    longPressTriggered = false;
+    var pressedElement = el;
+
+    longPressTimer = setTimeout(function() {
+      longPressTimer = null;
+      longPressTriggered = true;
+      if (!isActive) {
+        activate();
+      } else {
+        sendElement(pressedElement);
+      }
+    }, 800);
+  }
+
+  function onLongPressMove(e) {
+    if (!longPressTimer || !longPressStartPos) return;
+    var dx = e.clientX - longPressStartPos.x;
+    var dy = e.clientY - longPressStartPos.y;
+    if (dx * dx + dy * dy > 400) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
+
+  function onLongPressEnd(e) {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    if (longPressTriggered) {
+      e.preventDefault();
+      e.stopPropagation();
+      longPressTriggered = false;
+    }
+  }
+
+  // ── Screenshot region capture ──────────────────────────
+  function startScreenCapture() {
+    var screenOverlay = document.createElement('div');
+    screenOverlay.className = '__cb-screen-overlay';
+    document.body.appendChild(screenOverlay);
+
+    var selBox = document.createElement('div');
+    selBox.className = '__cb-screen-selection';
+    selBox.style.display = 'none';
+    document.body.appendChild(selBox);
+
+    var sizeLabel = document.createElement('div');
+    sizeLabel.className = '__cb-screen-size';
+    sizeLabel.style.display = 'none';
+    document.body.appendChild(sizeLabel);
+
+    var sx, sy, dragging = false;
+
+    function cleanupCapture() {
+      screenOverlay.parentNode && screenOverlay.parentNode.removeChild(screenOverlay);
+      selBox.parentNode && selBox.parentNode.removeChild(selBox);
+      sizeLabel.parentNode && sizeLabel.parentNode.removeChild(sizeLabel);
+      screenOverlay.removeEventListener('mousedown', onCapDown);
+      document.removeEventListener('mousemove', onCapMove, true);
+      document.removeEventListener('mouseup', onCapUp, true);
+      document.removeEventListener('keydown', onCapEsc, true);
+    }
+
+    function onCapDown(e) {
+      sx = e.clientX;
+      sy = e.clientY;
+      dragging = true;
+      selBox.style.display = 'block';
+      selBox.style.left = sx + 'px';
+      selBox.style.top = sy + 'px';
+      selBox.style.width = '0px';
+      selBox.style.height = '0px';
+    }
+
+    function onCapMove(e) {
+      if (!dragging) return;
+      var x = Math.min(sx, e.clientX);
+      var y = Math.min(sy, e.clientY);
+      var w = Math.abs(e.clientX - sx);
+      var h = Math.abs(e.clientY - sy);
+      selBox.style.left = x + 'px';
+      selBox.style.top = y + 'px';
+      selBox.style.width = w + 'px';
+      selBox.style.height = h + 'px';
+      sizeLabel.style.display = 'block';
+      sizeLabel.textContent = w + ' \\u00d7 ' + h;
+      sizeLabel.style.left = (x + w + 8) + 'px';
+      sizeLabel.style.top = (y + h + 8) + 'px';
+    }
+
+    function onCapUp(e) {
+      if (!dragging) return;
+      dragging = false;
+      var x = Math.min(sx, e.clientX);
+      var y = Math.min(sy, e.clientY);
+      var w = Math.abs(e.clientX - sx);
+      var h = Math.abs(e.clientY - sy);
+      cleanupCapture();
+      if (w < 5 || h < 5) return;
+
+      var scrollX = window.scrollX || window.pageXOffset || 0;
+      var scrollY = window.scrollY || window.pageYOffset || 0;
+      window.__claudeBrowser_captureRegion(x + scrollX, y + scrollY, w, h).then(function(n) {
+        if (n > 0) showToast('Screenshot #' + n + ' sent to Claude Code!');
+        else showToast('Screenshot failed');
+      });
+    }
+
+    function onCapEsc(e) {
+      if (e.key === 'Escape') {
+        cleanupCapture();
+      }
+    }
+
+    screenOverlay.addEventListener('mousedown', onCapDown);
+    document.addEventListener('mousemove', onCapMove, true);
+    document.addEventListener('mouseup', onCapUp, true);
+    document.addEventListener('keydown', onCapEsc, true);
+  }
+
+  // ── Double-click to send ─────────────────────────────
+  function onDblClick(e) {
+    if (!isActive) return;
+    var el = document.elementFromPoint(e.clientX, e.clientY);
+    if (!el || (el.className && typeof el.className === 'string' && el.className.includes('__cb-'))) return;
+    e.preventDefault();
+    e.stopPropagation();
+    sendElement(el);
   }
 
   // ── Attach ───────────────────────────────────────────
   document.addEventListener('mousemove', onMouseMove, true);
   document.addEventListener('keydown', onKeyDown, true);
+  document.addEventListener('mousedown', onLongPressStart, true);
+  document.addEventListener('mouseup', onLongPressEnd, true);
+  document.addEventListener('mousemove', onLongPressMove, true);
+  document.addEventListener('dblclick', onDblClick, true);
 })();`;

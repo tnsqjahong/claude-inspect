@@ -37,8 +37,44 @@ class OverlayManager {
   private pendingReject: ((reason: unknown) => void) | null = null;
   private exposedFunctions = new Set<string>();
   private pageLoadHandler: (() => Promise<void>) | null = null;
+  private selectionCounter = 0;
+  private appName = '';
+
+  private detectTerminal(): void {
+    const termProgram = process.env.TERM_PROGRAM || '';
+    if (termProgram.includes('iTerm')) this.appName = 'iTerm2';
+    else if (termProgram === 'Apple_Terminal') this.appName = 'Terminal';
+    else if (termProgram.includes('Warp')) this.appName = 'Warp';
+    else if (termProgram.includes('vscode')) this.appName = 'Visual Studio Code';
+    else if (termProgram.toLowerCase().includes('ghostty')) this.appName = 'Ghostty';
+    else this.appName = 'iTerm2';
+  }
+
+  private typeIntoTerminal(text: string): void {
+    if (process.platform === 'darwin') {
+      const escaped = text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+      if (this.appName === 'iTerm2') {
+        exec(`osascript -e 'tell application "iTerm2" to tell current session of current window to write text "${escaped}" newline no'`);
+      } else if (this.appName === 'Ghostty') {
+        execSync('pbcopy', { input: text });
+        exec(`osascript -e 'tell application "Ghostty" to activate' -e 'delay 0.3' -e 'tell application "System Events" to keystroke "v" using command down'`);
+      } else {
+        execSync('pbcopy', { input: text });
+        exec(`osascript -e 'tell application "${this.appName}" to activate' -e 'delay 0.5' -e 'tell application "System Events" to keystroke (do shell script "pbpaste")'`);
+      }
+    } else if (process.platform === 'linux') {
+      const escaped = text.replace(/'/g, "'\\''");
+      exec(`xdotool type --delay 0 '${escaped}'`);
+    } else if (process.platform === 'win32') {
+      const escaped = text.replace(/'/g, "''");
+      exec(`powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${escaped}')"`);
+    }
+  }
 
   async start(page: Page): Promise<void> {
+    this.detectTerminal();
+
     if (!this.exposedFunctions.has('__claudeBrowser_onElementSelected')) {
       await page.exposeFunction('__claudeBrowser_onElementSelected', (dataJson: string) => {
         try {
@@ -69,58 +105,64 @@ class OverlayManager {
       this.exposedFunctions.add('__claudeBrowser_onSelectionCancelled');
     }
 
-    // Send to Claude Code: save full info to file, type short reference into terminal
+    // Send element to Claude Code
     if (!this.exposedFunctions.has('__claudeBrowser_sendToClaudeCode')) {
-      let selectionCounter = 0;
-
-      // Detect terminal app once
-      const termProgram = process.env.TERM_PROGRAM || '';
-      let appName = '';
-      if (termProgram.includes('iTerm')) appName = 'iTerm2';
-      else if (termProgram === 'Apple_Terminal') appName = 'Terminal';
-      else if (termProgram.includes('Warp')) appName = 'Warp';
-      else if (termProgram.includes('vscode')) appName = 'Visual Studio Code';
-      else appName = 'iTerm2';
-
       await page.exposeFunction('__claudeBrowser_sendToClaudeCode', (fullText: string, componentName: string) => {
         try {
-          selectionCounter++;
-
-          // Save full info to file
+          this.selectionCounter++;
           const dir = join(process.cwd(), '.claude-browser', 'selections');
           mkdirSync(dir, { recursive: true });
-          writeFileSync(join(dir, `${selectionCounter}.txt`), fullText, 'utf-8');
+          writeFileSync(join(dir, `${this.selectionCounter}.txt`), fullText, 'utf-8');
 
-          // Type short reference into terminal
-          const shortRef = `[Component #${selectionCounter}: <${componentName}>]`;
-
-          if (process.platform === 'darwin') {
-            const escaped = shortRef.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-
-            if (appName === 'iTerm2') {
-              // iTerm2: direct write text (instant, no paste dialog)
-              exec(`osascript -e 'tell application "iTerm2" to tell current session of current window to write text "${escaped}" newline no'`);
-            } else {
-              // Terminal.app / others: pbcopy + keystroke fallback
-              execSync('pbcopy', { input: shortRef });
-              exec(`osascript -e 'tell application "${appName}" to activate' -e 'delay 0.5' -e 'tell application "System Events" to keystroke (do shell script "pbpaste")'`);
-            }
-          } else if (process.platform === 'linux') {
-            // Linux: xdotool type (simulates keyboard input)
-            const escaped = shortRef.replace(/'/g, "'\\''");
-            exec(`xdotool type --delay 0 '${escaped}'`);
-          } else if (process.platform === 'win32') {
-            // Windows: PowerShell SendKeys
-            const escaped = shortRef.replace(/'/g, "''");
-            exec(`powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${escaped}')"`)
-          }
-
-          return selectionCounter;
+          const shortRef = `[Component #${this.selectionCounter}: <${componentName}>]`;
+          this.typeIntoTerminal(shortRef);
+          return this.selectionCounter;
         } catch {
           return 0;
         }
       });
       this.exposedFunctions.add('__claudeBrowser_sendToClaudeCode');
+    }
+
+    // Capture region screenshot and send to Claude Code
+    if (!this.exposedFunctions.has('__claudeBrowser_captureRegion')) {
+      await page.exposeFunction('__claudeBrowser_captureRegion', async (x: number, y: number, width: number, height: number) => {
+        try {
+          // Hide overlay elements before capturing
+          await page.evaluate(() => {
+            document.querySelectorAll('[class^="__cb-"]').forEach((el) => {
+              (el as HTMLElement).style.visibility = 'hidden';
+            });
+          });
+
+          await new Promise(r => setTimeout(r, 50));
+
+          const buffer = await page.screenshot({
+            type: 'png',
+            clip: { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) },
+          });
+
+          // Restore overlay elements
+          await page.evaluate(() => {
+            document.querySelectorAll('[class^="__cb-"]').forEach((el) => {
+              (el as HTMLElement).style.visibility = '';
+            });
+          });
+
+          this.selectionCounter++;
+          const dir = join('/tmp', '.claude-browser', String(process.pid), 'screenshots');
+          mkdirSync(dir, { recursive: true });
+          const filePath = join(dir, `${this.selectionCounter}.png`);
+          writeFileSync(filePath, buffer);
+
+          const shortRef = `[Screenshot #${this.selectionCounter}: ${Math.round(width)}x${Math.round(height)} → ${filePath}]`;
+          this.typeIntoTerminal(shortRef);
+          return this.selectionCounter;
+        } catch {
+          return 0;
+        }
+      });
+      this.exposedFunctions.add('__claudeBrowser_captureRegion');
     }
 
     await this.injectOverlay(page);
@@ -166,8 +208,9 @@ class OverlayManager {
 
     try {
       await page.evaluate(() => {
-        const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
-        document.dispatchEvent(event);
+        if ((window as any).__claudeBrowser_fullCleanup) {
+          (window as any).__claudeBrowser_fullCleanup();
+        }
       });
     } catch {
       // Page may be closed or navigating; ignore errors

@@ -50,6 +50,15 @@ const routes: Record<string, RouteHandler> = {
       await overlayManager.start(page);
     }
 
+    // Exit daemon when browser window is closed by user
+    const browser = page.context().browser();
+    if (browser) {
+      browser.on('disconnected', () => {
+        try { rmSync(SESSION_FILE, { force: true }); } catch {}
+        setTimeout(() => process.exit(0), 100);
+      });
+    }
+
     const msg = url ? `Browser launched and navigated to ${url}` : 'Browser launched';
     json(res, 200, { message: msg, url });
   },
