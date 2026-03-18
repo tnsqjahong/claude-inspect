@@ -6,7 +6,7 @@ PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/Library/Caches/ms-pl
 
 # Install npm dependencies if missing
 if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
-  echo "claude-browser: Installing dependencies..."
+  echo "claude-inspect: Installing dependencies..."
   cd "$SCRIPT_DIR" && npm install --ignore-scripts 2>&1
 fi
 
@@ -18,13 +18,13 @@ check_chromium() {
 }
 
 if check_chromium; then
-  echo "claude-browser: Ready"
+  echo "claude-inspect: Ready"
 else
-  echo "claude-browser: Installing Chromium..."
+  echo "claude-inspect: Installing Chromium..."
   cd "$SCRIPT_DIR" && npx playwright install chromium 2>&1
   if check_chromium; then
-    echo "claude-browser: Ready"
+    echo "claude-inspect: Ready"
   else
-    echo "claude-browser: Failed to install Chromium. Run manually: npx playwright install chromium"
+    echo "claude-inspect: Failed to install Chromium. Run manually: npx playwright install chromium"
   fi
 fi

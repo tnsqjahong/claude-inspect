@@ -14,4 +14,4 @@ try {
   console.warn('⚠ Failed to install Chromium. Run "npx playwright install chromium" manually.');
 }
 
-console.log('✓ claude-browser installed. Use /inspect to start.');
+console.log('✓ claude-inspect installed. Use /inspect to start.');

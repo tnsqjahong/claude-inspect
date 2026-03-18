@@ -1,6 +1,6 @@
 export const OVERLAY_SCRIPT: string = `(function() {
-  if (window.__claudeBrowser_overlayActive) return;
-  window.__claudeBrowser_overlayActive = true;
+  if (window.__claudeInspect_overlayActive) return;
+  window.__claudeInspect_overlayActive = true;
 
   // ── DOM Setup ────────────────────────────────────────
   var highlight = document.createElement('div');
@@ -334,7 +334,7 @@ export const OVERLAY_SCRIPT: string = `(function() {
 
       // Save full info to file + type short reference into terminal
       var name = (info.component && info.component.componentName) ? info.component.componentName : info.tagName;
-      window.__claudeBrowser_sendToClaudeCode(info.formattedText, name).then(function(n) {
+      window.__claudeInspect_sendToClaudeCode(info.formattedText, name).then(function(n) {
         if (n > 0) {
           showToast('Sent [Component #' + n + '] to Claude Code!');
         } else {
@@ -438,7 +438,7 @@ export const OVERLAY_SCRIPT: string = `(function() {
   function onKeyDown(e) {
     if (e.key === 'Escape') {
       cleanup();
-      window.__claudeBrowser_onSelectionCancelled();
+      window.__claudeInspect_onSelectionCancelled();
     }
   }
 
@@ -454,7 +454,7 @@ export const OVERLAY_SCRIPT: string = `(function() {
     }
     document.removeEventListener('mousemove', onMouseMove, true);
     document.removeEventListener('keydown', onKeyDown, true);
-    window.__claudeBrowser_overlayActive = false;
+    window.__claudeInspect_overlayActive = false;
   }
 
   // ── Attach ───────────────────────────────────────────

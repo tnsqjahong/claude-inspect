@@ -39,8 +39,8 @@ class OverlayManager {
   private pageLoadHandler: (() => Promise<void>) | null = null;
 
   async start(page: Page): Promise<void> {
-    if (!this.exposedFunctions.has('__claudeBrowser_onElementSelected')) {
-      await page.exposeFunction('__claudeBrowser_onElementSelected', (dataJson: string) => {
+    if (!this.exposedFunctions.has('__claudeInspect_onElementSelected')) {
+      await page.exposeFunction('__claudeInspect_onElementSelected', (dataJson: string) => {
         try {
           const data = JSON.parse(dataJson) as SelectedElementData;
           this.lastSelected = data;
@@ -54,11 +54,11 @@ class OverlayManager {
           // ignore parse errors
         }
       });
-      this.exposedFunctions.add('__claudeBrowser_onElementSelected');
+      this.exposedFunctions.add('__claudeInspect_onElementSelected');
     }
 
-    if (!this.exposedFunctions.has('__claudeBrowser_onSelectionCancelled')) {
-      await page.exposeFunction('__claudeBrowser_onSelectionCancelled', () => {
+    if (!this.exposedFunctions.has('__claudeInspect_onSelectionCancelled')) {
+      await page.exposeFunction('__claudeInspect_onSelectionCancelled', () => {
         if (this.pendingReject) {
           const reject = this.pendingReject;
           this.pendingResolve = null;
@@ -66,11 +66,11 @@ class OverlayManager {
           reject(new Error('Selection cancelled by user'));
         }
       });
-      this.exposedFunctions.add('__claudeBrowser_onSelectionCancelled');
+      this.exposedFunctions.add('__claudeInspect_onSelectionCancelled');
     }
 
     // Send to Claude Code: save full info to file, type short reference into terminal
-    if (!this.exposedFunctions.has('__claudeBrowser_sendToClaudeCode')) {
+    if (!this.exposedFunctions.has('__claudeInspect_sendToClaudeCode')) {
       let selectionCounter = 0;
 
       // Detect terminal app once
@@ -82,12 +82,12 @@ class OverlayManager {
       else if (termProgram.includes('vscode')) appName = 'Visual Studio Code';
       else appName = 'iTerm2';
 
-      await page.exposeFunction('__claudeBrowser_sendToClaudeCode', (fullText: string, componentName: string) => {
+      await page.exposeFunction('__claudeInspect_sendToClaudeCode', (fullText: string, componentName: string) => {
         try {
           selectionCounter++;
 
           // Save full info to file
-          const dir = join(process.cwd(), '.claude-browser', 'selections');
+          const dir = join(process.cwd(), '.claude-inspect', 'selections');
           mkdirSync(dir, { recursive: true });
           writeFileSync(join(dir, `${selectionCounter}.txt`), fullText, 'utf-8');
 
@@ -120,7 +120,7 @@ class OverlayManager {
           return 0;
         }
       });
-      this.exposedFunctions.add('__claudeBrowser_sendToClaudeCode');
+      this.exposedFunctions.add('__claudeInspect_sendToClaudeCode');
     }
 
     await this.injectOverlay(page);

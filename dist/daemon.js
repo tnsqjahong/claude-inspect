@@ -9,7 +9,7 @@ import { sourceMapper } from './inspector/source-mapper.js';
 import { consoleMonitor } from './monitor/console-monitor.js';
 import { networkMonitor } from './monitor/network-monitor.js';
 import { performanceMonitor } from './monitor/performance-monitor.js';
-const SESSION_DIR = join(process.cwd(), '.claude-browser');
+const SESSION_DIR = join(process.cwd(), '.claude-inspect');
 const SESSION_FILE = join(SESSION_DIR, 'session.json');
 function json(res, status, data) {
     res.writeHead(status, { 'Content-Type': 'application/json' });

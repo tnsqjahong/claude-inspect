@@ -1,5 +1,5 @@
 {
-  "name": "claude-browser",
+  "name": "claude-inspect",
   "version": "2.0.0",
   "description": "Browser automation for frontend development - visual element selection, component detection, source mapping, and monitoring"
 }

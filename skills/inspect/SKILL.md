@@ -4,7 +4,7 @@ description: Open a browser and start visual element inspection mode for fronten
 argument-hint: "<url>"
 allowed-tools:
   - Bash(node *)
-  - Read(.claude-browser/*)
+  - Read(.claude-inspect/*)
 ---
 
 # Inspect
@@ -25,7 +25,7 @@ All commands below should be run as: `node <CLI_PATH> <command> [args]`
 
 1. Run `node <CLI_PATH> launch $ARGUMENTS` to start the browser
 2. Tell the user the browser is open and they can hover over elements and click "→ Claude Code" to select them
-3. When the user selects an element (indicated by `[Component #N]` in chat), read the selection file from `.claude-browser/selections/N.txt` for full component details
+3. When the user selects an element (indicated by `[Component #N]` in chat), read the selection file from `.claude-inspect/selections/N.txt` for full component details
 
 ## Available Commands
 
@@ -48,14 +48,14 @@ node <CLI_PATH> status                        # Check status
 
 ## Output Locations
 
-All data is saved to `.claude-browser/` as files. Use Read tool for full data.
+All data is saved to `.claude-inspect/` as files. Use Read tool for full data.
 
 | Command | Output |
 |---------|--------|
-| screenshot | `.claude-browser/screenshots/{timestamp}.png` |
-| logs | `.claude-browser/logs/{timestamp}.json` |
-| network | `.claude-browser/network/{timestamp}.json` |
-| perf | `.claude-browser/perf/{timestamp}.json` |
-| inspect | `.claude-browser/inspections/{timestamp}.json` |
-| components | `.claude-browser/components/{timestamp}.json` |
-| select wait | `.claude-browser/selections/{timestamp}.json` |
+| screenshot | `.claude-inspect/screenshots/{timestamp}.png` |
+| logs | `.claude-inspect/logs/{timestamp}.json` |
+| network | `.claude-inspect/network/{timestamp}.json` |
+| perf | `.claude-inspect/perf/{timestamp}.json` |
+| inspect | `.claude-inspect/inspections/{timestamp}.json` |
+| components | `.claude-inspect/components/{timestamp}.json` |
+| select wait | `.claude-inspect/selections/{timestamp}.json` |

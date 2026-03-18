@@ -9,9 +9,9 @@ class PerformanceMonitor {
             const paintEntries = performance.getEntriesByType('paint');
             const fcpEntry = paintEntries.find((e) => e.name === 'first-contentful-paint');
             const fcp = fcpEntry ? fcpEntry.startTime : null;
-            const lcp = w.__claudeBrowser_lcp ?? null;
-            const cls = w.__claudeBrowser_cls ?? null;
-            const inp = w.__claudeBrowser_inp ?? null;
+            const lcp = w.__claudeInspect_lcp ?? null;
+            const cls = w.__claudeInspect_cls ?? null;
+            const inp = w.__claudeInspect_inp ?? null;
             const resourceEntries = performance.getEntriesByType('resource');
             const byType = {};
             let totalSize = 0;
@@ -48,7 +48,7 @@ class PerformanceMonitor {
                 const lcpObserver = new PerformanceObserver((list) => {
                     const entries = list.getEntries();
                     if (entries.length > 0) {
-                        w.__claudeBrowser_lcp = entries[entries.length - 1].startTime;
+                        w.__claudeInspect_lcp = entries[entries.length - 1].startTime;
                     }
                 });
                 lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
@@ -65,7 +65,7 @@ class PerformanceMonitor {
                             clsValue += layoutShift.value;
                         }
                     }
-                    w.__claudeBrowser_cls = clsValue;
+                    w.__claudeInspect_cls = clsValue;
                 });
                 clsObserver.observe({ type: 'layout-shift', buffered: true });
             }
@@ -77,9 +77,9 @@ class PerformanceMonitor {
                     for (const entry of list.getEntries()) {
                         const interaction = entry;
                         if (interaction.duration !== undefined) {
-                            const current = w.__claudeBrowser_inp ?? 0;
+                            const current = w.__claudeInspect_inp ?? 0;
                             if (interaction.duration > current) {
-                                w.__claudeBrowser_inp = interaction.duration;
+                                w.__claudeInspect_inp = interaction.duration;
                             }
                         }
                     }

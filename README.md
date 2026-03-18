@@ -1,4 +1,4 @@
-# claude-browser
+# claude-inspect
 
 Claude Code plugin for frontend development. Launch a browser, visually inspect elements, detect React/Vue/Svelte components, and monitor console/network/performance.
 
@@ -14,8 +14,8 @@ Claude Code plugin for frontend development. Launch a browser, visually inspect 
 ## Installation
 
 ```bash
-/plugin marketplace add tnsqjahong/claude-browser
-/plugin install claude-browser
+/plugin marketplace add tnsqjahong/claude-inspect
+/plugin install claude-inspect
 ```
 
 ## Usage
@@ -23,16 +23,16 @@ Claude Code plugin for frontend development. Launch a browser, visually inspect 
 ### Quick start
 
 ```
-/claude-browser:inspect http://localhost:3000
+/claude-inspect:inspect http://localhost:3000
 ```
 
 ### Element selection
 
-1. `/claude-browser:inspect http://localhost:3000`
+1. `/claude-inspect:inspect http://localhost:3000`
 2. Hover over elements to see component info
 3. Click **"→ Claude Code"** on the tooltip
 4. `[Component #1: <Header>]` appears in your chat
-5. Claude reads the component details from `.claude-browser/selections/`
+5. Claude reads the component details from `.claude-inspect/selections/`
 
 ### Natural language
 
@@ -48,22 +48,22 @@ Check the console errors and failed network requests on localhost:3000
 
 | Command | Description |
 |---------|-------------|
-| `claude-browser launch <url> [--headless]` | Launch browser |
-| `claude-browser navigate <url>` | Navigate to URL |
-| `claude-browser screenshot [--fullpage]` | Save screenshot |
-| `claude-browser close` | Close browser |
-| `claude-browser inspect <selector>` | Inspect element by CSS selector |
-| `claude-browser select start` | Start visual selection |
-| `claude-browser select wait [--timeout=N]` | Wait for user click |
-| `claude-browser select stop` | Stop selection |
-| `claude-browser logs [--type=error\|warn\|all] [--limit=N]` | Console logs |
-| `claude-browser network [--failed] [--limit=N]` | Network requests |
-| `claude-browser perf` | Core Web Vitals |
-| `claude-browser components [--selector=<sel>]` | Component tree |
-| `claude-browser find-component <name> [--root=<path>]` | Find source file |
-| `claude-browser status` | Check status |
+| `claude-inspect launch <url> [--headless]` | Launch browser |
+| `claude-inspect navigate <url>` | Navigate to URL |
+| `claude-inspect screenshot [--fullpage]` | Save screenshot |
+| `claude-inspect close` | Close browser |
+| `claude-inspect inspect <selector>` | Inspect element by CSS selector |
+| `claude-inspect select start` | Start visual selection |
+| `claude-inspect select wait [--timeout=N]` | Wait for user click |
+| `claude-inspect select stop` | Stop selection |
+| `claude-inspect logs [--type=error\|warn\|all] [--limit=N]` | Console logs |
+| `claude-inspect network [--failed] [--limit=N]` | Network requests |
+| `claude-inspect perf` | Core Web Vitals |
+| `claude-inspect components [--selector=<sel>]` | Component tree |
+| `claude-inspect find-component <name> [--root=<path>]` | Find source file |
+| `claude-inspect status` | Check status |
 
-All output is saved under `.claude-browser/` (screenshots, logs, network, perf, inspections, components, selections).
+All output is saved under `.claude-inspect/` (screenshots, logs, network, perf, inspections, components, selections).
 
 ## Supported Frameworks
 

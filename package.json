@@ -1,11 +1,11 @@
 {
-  "name": "claude-browser",
+  "name": "claude-inspect",
   "version": "2.0.0",
   "description": "Claude Code CLI for frontend development - visual element selection, component detection, browser monitoring",
   "type": "module",
   "main": "dist/cli.js",
   "bin": {
-    "claude-browser": "dist/cli.js"
+    "claude-inspect": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -36,11 +36,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tnsqjahong/claude-browser.git"
+    "url": "git+https://github.com/tnsqjahong/claude-inspect.git"
   },
-  "homepage": "https://github.com/tnsqjahong/claude-browser#readme",
+  "homepage": "https://github.com/tnsqjahong/claude-inspect#readme",
   "bugs": {
-    "url": "https://github.com/tnsqjahong/claude-browser/issues"
+    "url": "https://github.com/tnsqjahong/claude-inspect/issues"
   },
   "license": "MIT",
   "author": "tnsqjahong",

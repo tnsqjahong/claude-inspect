@@ -7,7 +7,7 @@ import { request as httpRequest } from 'node:http';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PACKAGE_ROOT = join(__dirname, '..');
-const SESSION_DIR = join(process.cwd(), '.claude-browser');
+const SESSION_DIR = join(process.cwd(), '.claude-inspect');
 const SESSION_FILE = join(SESSION_DIR, 'session.json');
 // ── Output directories ────────────────────────────────────────────────
 const DIRS = {
@@ -24,7 +24,7 @@ function ensureDir(dir) {
 }
 function readSession() {
     if (!existsSync(SESSION_FILE)) {
-        console.error('No active browser session. Run "claude-browser launch <url>" first.');
+        console.error('No active browser session. Run "claude-inspect launch <url>" first.');
         process.exit(1);
     }
     return JSON.parse(readFileSync(SESSION_FILE, 'utf-8'));
@@ -155,7 +155,7 @@ async function cmdLaunch(args) {
 async function cmdNavigate(args) {
     const url = args[0];
     if (!url) {
-        console.error('Usage: claude-browser navigate <url>');
+        console.error('Usage: claude-inspect navigate <url>');
         process.exit(1);
     }
     const session = readSession();
@@ -185,7 +185,7 @@ async function cmdClose() {
 async function cmdInspect(args) {
     const selector = args[0];
     if (!selector) {
-        console.error('Usage: claude-browser inspect <selector>');
+        console.error('Usage: claude-inspect inspect <selector>');
         process.exit(1);
     }
     const session = readSession();
@@ -275,7 +275,7 @@ async function cmdComponents(args) {
 async function cmdFindComponent(args) {
     const name = args.find((a) => !a.startsWith('--'));
     if (!name) {
-        console.error('Usage: claude-browser find-component <name>');
+        console.error('Usage: claude-inspect find-component <name>');
         process.exit(1);
     }
     const rootArg = args.find((a) => a.startsWith('--root='));
@@ -323,7 +323,7 @@ const commands = {
             return cmdSelectWait(rest);
         if (sub === 'stop')
             return cmdSelectStop();
-        console.error('Usage: claude-browser select <start|wait|stop>');
+        console.error('Usage: claude-inspect select <start|wait|stop>');
         process.exit(1);
     },
     logs: cmdLogs,
@@ -334,28 +334,28 @@ const commands = {
     status: () => cmdStatus(),
 };
 if (!command || command === '--help' || command === '-h') {
-    console.log(`claude-browser - Browser automation CLI for Claude Code
+    console.log(`claude-inspect - Browser automation CLI for Claude Code
 
 Usage:
-  claude-browser launch <url> [--headless]     Launch browser and navigate
-  claude-browser navigate <url>                Navigate to URL
-  claude-browser screenshot [--fullpage]       Take screenshot
-  claude-browser close                         Close browser and daemon
-  claude-browser inspect <selector>            Inspect element by CSS selector
-  claude-browser select start                  Start visual element selection
-  claude-browser select wait [--timeout=N]     Wait for user selection
-  claude-browser select stop                   Stop element selection
-  claude-browser logs [--type=error|warn|all] [--limit=N]
-  claude-browser network [--failed] [--limit=N]
-  claude-browser perf                          Get Core Web Vitals
-  claude-browser components [--selector=<sel>] Get component tree
-  claude-browser find-component <name> [--root=<path>]
-  claude-browser status                        Check daemon/browser status`);
+  claude-inspect launch <url> [--headless]     Launch browser and navigate
+  claude-inspect navigate <url>                Navigate to URL
+  claude-inspect screenshot [--fullpage]       Take screenshot
+  claude-inspect close                         Close browser and daemon
+  claude-inspect inspect <selector>            Inspect element by CSS selector
+  claude-inspect select start                  Start visual element selection
+  claude-inspect select wait [--timeout=N]     Wait for user selection
+  claude-inspect select stop                   Stop element selection
+  claude-inspect logs [--type=error|warn|all] [--limit=N]
+  claude-inspect network [--failed] [--limit=N]
+  claude-inspect perf                          Get Core Web Vitals
+  claude-inspect components [--selector=<sel>] Get component tree
+  claude-inspect find-component <name> [--root=<path>]
+  claude-inspect status                        Check daemon/browser status`);
     process.exit(0);
 }
 const handler = commands[command];
 if (!handler) {
-    console.error(`Unknown command: ${command}. Run "claude-browser --help" for usage.`);
+    console.error(`Unknown command: ${command}. Run "claude-inspect --help" for usage.`);
     process.exit(1);
 }
 handler(args).catch((err) => {
