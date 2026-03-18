@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { request as httpRequest } from 'node:http';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const PACKAGE_ROOT = join(__dirname, '..');
 const SESSION_DIR = join(process.cwd(), '.claude-browser');
 const SESSION_FILE = join(SESSION_DIR, 'session.json');
 // ── Output directories ────────────────────────────────────────────────
@@ -79,6 +80,14 @@ function get(port, path) {
 function ts() {
     return new Date().toISOString().replace(/[:.]/g, '-');
 }
+// ── Dependency check ──────────────────────────────────────────────────
+function ensureDependencies() {
+    const nodeModules = join(PACKAGE_ROOT, 'node_modules');
+    if (!existsSync(join(nodeModules, 'playwright'))) {
+        console.error('Installing dependencies...');
+        execSync('npm install --ignore-scripts', { cwd: PACKAGE_ROOT, stdio: 'inherit' });
+    }
+}
 // ── Daemon launcher ───────────────────────────────────────────────────
 async function launchDaemon() {
     const daemonScript = join(__dirname, 'daemon.js');
@@ -138,6 +147,7 @@ async function cmdLaunch(args) {
         }
         catch { }
     }
+    ensureDependencies();
     const session = await launchDaemon();
     const { data } = await post(session.port, '/launch', { url, headless });
     console.log(data.message || 'Browser launched');
