@@ -27,15 +27,6 @@ class BrowserManager {
 
     const browser: Browser = await chromium.launch({ headless: options.headless ?? false });
 
-    browser.on('disconnected', () => {
-      this.state = {
-        browser: null,
-        context: null,
-        page: null,
-        isRunning: false,
-      };
-    });
-
     const context: BrowserContext = await browser.newContext({
       viewport: { width: 1280, height: 720 },
     });
@@ -52,6 +43,13 @@ class BrowserManager {
       page,
       isRunning: true,
     };
+
+    // Clean up state when page or browser closes
+    const resetState = () => {
+      this.state = { browser: null, context: null, page: null, isRunning: false };
+    };
+    page.on('close', resetState);
+    browser.on('disconnected', resetState);
   }
 
   async navigate(url: string): Promise<void> {

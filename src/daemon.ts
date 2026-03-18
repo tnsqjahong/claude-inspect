@@ -51,12 +51,14 @@ const routes: Record<string, RouteHandler> = {
     }
 
     // Exit daemon when browser window is closed
+    const exitDaemon = () => {
+      try { rmSync(SESSION_FILE, { force: true }); } catch {}
+      setTimeout(() => process.exit(0), 100);
+    };
+    page.on('close', exitDaemon);
     const browser = page.context().browser();
     if (browser) {
-      browser.on('disconnected', () => {
-        try { rmSync(SESSION_FILE, { force: true }); } catch {}
-        setTimeout(() => process.exit(0), 100);
-      });
+      browser.on('disconnected', exitDaemon);
     }
 
     const msg = url ? `Browser launched and navigated to ${url}` : 'Browser launched';
