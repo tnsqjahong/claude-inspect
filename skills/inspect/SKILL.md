@@ -24,8 +24,9 @@ All commands below should be run as: `node <CLI_PATH> <command> [args]`
 ## Instructions
 
 1. Run `node <CLI_PATH> launch $ARGUMENTS` to start the browser
-2. Tell the user the browser is open and they can hover over elements and click "→ Claude Code" to select them
+2. Tell the user the browser is open and they can hover over elements and click "→ Claude Code" to select them, then wait for their next message
 3. When the user selects an element (indicated by `[Component #N]` in chat), read the selection file from `.claude-inspect/selections/N.txt` for full component details
+4. Run other commands (screenshot, logs, network, perf, etc.) only when the user asks
 
 ## Available Commands
 
